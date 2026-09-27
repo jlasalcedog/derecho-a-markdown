@@ -1,0 +1,25 @@
+* text=auto
+
+# Windows necesita CRLF en scripts de consola
+*.bat  text eol=crlf
+*.cmd  text eol=crlf
+*.ps1  text eol=crlf
+
+*.py   text eol=lf
+*.pyw  text eol=lf
+*.md   text eol=lf
+*.yml  text eol=lf
+
+*.ico  binary
+*.png  binary
+*.pdf  binary
+*.docx binary
+*.xlsx binary
+*.pptx binary
+
+# Fuera del .zip de Releases / "Download ZIP"
+/.github        export-ignore
+/tests          export-ignore
+/.gitattributes export-ignore
+/.gitignore     export-ignore
+/CHANGELOG.md   export-ignore

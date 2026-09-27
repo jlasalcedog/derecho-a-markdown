@@ -1,0 +1,91 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+
+jobs:
+  windows:
+    name: Instalar, convertir y desinstalar (Windows)
+    runs-on: windows-latest
+    timeout-minutes: 25
+    env:
+      PYTHONIOENCODING: utf-8
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Analizar scripts PowerShell (PSScriptAnalyzer)
+        shell: powershell
+        run: |
+          Install-Module PSScriptAnalyzer -Force -Scope CurrentUser -SkipPublisherCheck
+          $r = Invoke-ScriptAnalyzer -Path . -Recurse -Severity Error
+          $r | Format-Table -AutoSize
+          if ($r) { exit 1 }
+
+      - name: Instalar con Windows PowerShell 5.1
+        shell: cmd
+        run: powershell -NoProfile -ExecutionPolicy Bypass -File instalar.ps1 -SinPreguntas
+
+      - name: Verificar registro y archivos instalados
+        shell: powershell
+        run: |
+          $dir = Join-Path $env:LOCALAPPDATA 'DerechoAMarkdown'
+          $pyw = Join-Path $dir 'venv\Scripts\pythonw.exe'
+          if (-not (Test-Path $pyw)) { throw "Falta $pyw" }
+          if (-not (Test-Path (Join-Path $dir 'app\convertir_markitdown.pyw'))) { throw 'Falta el script' }
+          foreach ($ext in '.pdf', '.docx', '.pptx', '.xlsx', '.csv', '.html') {
+            $k = "HKCU:\Software\Classes\SystemFileAssociations\$ext\shell\DerechoAMarkdown"
+            if (-not (Test-Path $k)) { throw "Sin entrada de menu para $ext" }
+            $cmd = (Get-Item "$k\command").GetValue('')
+            if ($cmd -notlike "*pythonw.exe*convertir_markitdown.pyw*%1*") { throw "Comando inesperado en ${ext}: $cmd" }
+          }
+          if (Test-Path 'HKCU:\Software\Classes\SystemFileAssociations\.jpg\shell\DerechoAMarkdown') { throw '.jpg no deberia estar sin -IncluirMultimedia' }
+          Write-Host 'Registro OK'
+
+      - name: Convertir archivos de muestra con la copia instalada
+        shell: powershell
+        run: |
+          $env:MARKITDOWN_APP_DIR = Join-Path $env:LOCALAPPDATA 'DerechoAMarkdown\app'
+          & (Join-Path $env:LOCALAPPDATA 'DerechoAMarkdown\venv\Scripts\python.exe') tests\test_conversion.py
+          if ($LASTEXITCODE -ne 0) { exit 1 }
+
+      - name: Reinstalar (debe ser idempotente) con multimedia
+        shell: cmd
+        run: powershell -NoProfile -ExecutionPolicy Bypass -File instalar.ps1 -SinPreguntas -IncluirMultimedia
+
+      - name: Desinstalar
+        shell: cmd
+        run: powershell -NoProfile -ExecutionPolicy Bypass -File desinstalar.ps1
+
+      - name: Verificar desinstalacion
+        shell: powershell
+        run: |
+          Start-Sleep -Seconds 3
+          $quedan = Get-ChildItem 'HKCU:\Software\Classes\SystemFileAssociations' -ErrorAction SilentlyContinue |
+            Where-Object { Test-Path -LiteralPath (Join-Path $_.PSPath 'shell\DerechoAMarkdown') }
+          if ($quedan) { throw "Quedaron entradas: $($quedan.PSChildName -join ', ')" }
+          if (Test-Path (Join-Path $env:LOCALAPPDATA 'DerechoAMarkdown')) { throw 'Quedo la carpeta de instalacion' }
+          Write-Host 'Desinstalacion OK'
+
+      - name: Recolectar logs si falla
+        if: failure()
+        shell: powershell
+        run: |
+          New-Item -ItemType Directory -Force logs | Out-Null
+          Copy-Item "$env:TEMP\derecho-a-markdown_instalar.log" logs\ -ErrorAction SilentlyContinue
+          Copy-Item "$env:LOCALAPPDATA\DerechoAMarkdown\app\errores.log" logs\ -ErrorAction SilentlyContinue
+          Copy-Item tests\salida logs\salida -Recurse -ErrorAction SilentlyContinue
+
+      - name: Subir logs si falla
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: logs
+          path: logs/
+          if-no-files-found: ignore

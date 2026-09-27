@@ -1,0 +1,41 @@
+name: Release
+
+on:
+  push:
+    tags: ["v*.*.*"]
+
+permissions:
+  contents: write
+
+jobs:
+  release:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Verificar que el tag coincide con la versión del instalador
+        run: |
+          tag="${GITHUB_REF_NAME#v}"
+          ver=$(grep -oP "^\\\$Version\s*=\s*'\K[^']+" instalar.ps1)
+          echo "tag=$tag  instalar.ps1=$ver"
+          test "$tag" = "$ver" || { echo "::error::Actualiza \$Version en instalar.ps1 a $tag"; exit 1; }
+
+      - name: Construir zip (CRLF en .bat/.ps1, sin tests ni .github)
+        run: |
+          mkdir -p dist
+          name="derecho-a-markdown-${GITHUB_REF_NAME}"
+          git archive --format=zip --prefix="${name}/" -o "dist/${name}.zip" HEAD
+          unzip -l "dist/${name}.zip"
+
+      - name: Publicar Release (crea o actualiza si ya existe)
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          if gh release view "$GITHUB_REF_NAME" >/dev/null 2>&1; then
+            echo "El Release $GITHUB_REF_NAME ya existe: se reemplaza el .zip"
+            gh release upload "$GITHUB_REF_NAME" dist/*.zip --clobber
+          else
+            gh release create "$GITHUB_REF_NAME" dist/*.zip \
+              --title "$GITHUB_REF_NAME" \
+              --generate-notes
+          fi
