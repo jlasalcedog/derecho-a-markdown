@@ -1,5 +1,14 @@
 # Cambios
 
+## [1.1.0] - 2026-09-27
+
+### Agregado
+- **Selección múltiple en una sola ventana**: al convertir varios archivos se elige la carpeta de destino una vez (antes se abría un "Guardar como" por archivo).
+- Barra "N de M", botón Cancelar y resumen final (convertidos, vacíos, con error) con opción de abrir la carpeta.
+- Manejo de nombres repetidos (`informe (pdf).md`) y de archivos existentes (reemplazar o `nombre (1).md`).
+- La opción aparece aunque se seleccionen más de 15 archivos (`MultiSelectModel=Player`).
+- Prueba automática de la agrupación con procesos reales en Windows (named pipes).
+
 ## [1.0.0] - 2026-09-27
 
 ### Agregado

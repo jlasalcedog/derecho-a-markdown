@@ -44,6 +44,7 @@ jobs:
             if (-not (Test-Path $k)) { throw "Sin entrada de menu para $ext" }
             $cmd = (Get-Item "$k\command").GetValue('')
             if ($cmd -notlike "*pythonw.exe*convertir_markitdown.pyw*%1*") { throw "Comando inesperado en ${ext}: $cmd" }
+            if ((Get-ItemProperty $k).MultiSelectModel -ne 'Player') { throw "Falta MultiSelectModel=Player en $ext" }
           }
           if (Test-Path 'HKCU:\Software\Classes\SystemFileAssociations\.jpg\shell\DerechoAMarkdown') { throw '.jpg no deberia estar sin -IncluirMultimedia' }
           Write-Host 'Registro OK'
@@ -53,6 +54,13 @@ jobs:
         run: |
           $env:MARKITDOWN_APP_DIR = Join-Path $env:LOCALAPPDATA 'DerechoAMarkdown\app'
           & (Join-Path $env:LOCALAPPDATA 'DerechoAMarkdown\venv\Scripts\python.exe') tests\test_conversion.py
+          if ($LASTEXITCODE -ne 0) { exit 1 }
+
+      - name: Seleccion multiple - agrupar procesos en una sola ventana (named pipes)
+        shell: powershell
+        run: |
+          $env:MARKITDOWN_APP_DIR = Join-Path $env:LOCALAPPDATA 'DerechoAMarkdown\app'
+          & (Join-Path $env:LOCALAPPDATA 'DerechoAMarkdown\venv\Scripts\python.exe') tests\test_agrupacion.py
           if ($LASTEXITCODE -ne 0) { exit 1 }
 
       - name: Reinstalar (debe ser idempotente) con multimedia

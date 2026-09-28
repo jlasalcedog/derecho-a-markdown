@@ -22,6 +22,7 @@ Integra [microsoft/markitdown](https://github.com/microsoft/markitdown) (la libr
 - **Funciona con el PowerShell que trae Windows** (5.1); no requiere PowerShell 7.
 - **Solo aparece en formatos compatibles**: no llena el menú de archivos que MarkItDown no entiende.
 - **Windows 11**: opción de activar el menú clásico para que la entrada salga directo al hacer click derecho.
+- **Varios archivos a la vez en una sola ventana**: eliges la carpeta de destino una vez y se convierten todos, con barra "N de M", botón Cancelar y resumen final.
 - Barra de progreso, aviso si el resultado sale vacío (PDF escaneado) y opción de abrir el `.md` al terminar.
 - Desinstalador que deja todo como estaba.
 
@@ -58,7 +59,16 @@ powershell -ExecutionPolicy Bypass -File .\instalar.ps1 -SinPreguntas -MenuClasi
    En Windows 11 sin menú clásico: **Mostrar más opciones** (o **Shift + click derecho**).
 3. Elige dónde guardar → espera la barra de progreso → ¿abrir el archivo?
 
-Si seleccionas varios archivos, aparece un diálogo por cada uno.
+### Varios archivos
+
+Selecciona todos los que quieras → click derecho → **Convertir a Markdown**:
+
+1. Se abre **una sola ventana** para elegir la carpeta de destino (por defecto, la de los archivos).
+2. Si alguno de los `.md` ya existe, te pregunta si reemplazarlos o guardarlos como `nombre (1).md`.
+3. Barra *"Convirtiendo 3 de 8: informe.pdf"* con botón **Cancelar**.
+4. Resumen: cuántos se convirtieron, cuáles quedaron vacíos o con error, y opción de abrir la carpeta.
+
+Si dos archivos comparten nombre (`informe.pdf` e `informe.docx`) se guardan como `informe (pdf).md` e `informe (docx).md`.
 
 ## Formatos
 
@@ -89,10 +99,14 @@ Vuelve a ejecutar `instalar.bat` (o el de una versión nueva): actualiza `markit
 Click derecho ─► HKCU\Software\Classes\SystemFileAssociations\<.ext>\shell\DerechoAMarkdown
                    └─ command: "<venv>\Scripts\pythonw.exe" "<app>\convertir_markitdown.pyw" "%1"
                                  │
-                                 ├─ tkinter: diálogo "Guardar como"
+                                 ├─ ¿varios archivos? el 1.º crea el pipe \\.\pipe\derecho-a-markdown-<usuario>
+                                 │   y los demás le entregan su ruta y terminan (instancia única)
+                                 ├─ tkinter: "Guardar como" (1 archivo) o "Elegir carpeta" (lote)
                                  ├─ MarkItDown().convert(archivo)   (en un hilo, con barra de progreso)
                                  └─ escribe el .md en UTF-8
 ```
+
+El Explorador lanza un proceso por archivo seleccionado. El primero en arrancar crea un *named pipe* y espera 0,8 s de silencio recibiendo las rutas del resto; así todo el lote queda en una sola ventana. Si un proceso llega tarde, espera a que termine el lote actual y abre el suyo: ningún archivo se pierde. `MultiSelectModel=Player` hace que la opción aparezca aunque selecciones más de 15 archivos.
 
 | Qué | Dónde |
 |---|---|
@@ -123,7 +137,7 @@ app/convertir_markitdown.pyw   conversor + interfaz (tkinter)
 app/markitdown.ico             ícono
 instalar.ps1 / .bat            instalador
 desinstalar.ps1 / .bat         desinstalador
-tests/                         prueba de conversión con archivos de muestra
+tests/                         conversión con archivos de muestra y agrupación de procesos
 .github/workflows/ci.yml       instala, convierte y desinstala en Windows real
 .github/workflows/release.yml  publica el .zip al crear un tag vX.Y.Z
 ```
@@ -133,9 +147,10 @@ Probar la conversión localmente:
 ```powershell
 py -3.12 -m venv .venv; .venv\Scripts\pip install "markitdown[all]"
 .venv\Scripts\python tests\test_conversion.py
+.venv\Scripts\python tests\test_agrupacion.py
 ```
 
-Publicar una versión: `git tag v1.0.0 && git push --tags` → la Action crea el Release con el `.zip`.
+Publicar una versión: sube `$Version` en `instalar.ps1`, luego `git tag vX.Y.Z && git push --tags` → la Action crea el Release con el `.zip`.
 
 ## Alternativas
 

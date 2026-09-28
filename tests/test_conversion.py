@@ -4,25 +4,15 @@ que usa el menú contextual y verifica el contenido del .md.
 
 Uso:  python tests/test_conversion.py
       (con el python del entorno que tenga markitdown instalado)
-      MARKITDOWN_APP_DIR=<carpeta> para probar otra copia de app/
+      MARKITDOWN_APP_DIR=<carpeta> para probar otra copia de app/ (ver _app.py)
 """
-import importlib.util
-import os
 import sys
-from importlib.machinery import SourceFileLoader
-from pathlib import Path
 
-RAIZ = Path(__file__).resolve().parent.parent
+from _app import RAIZ, cargar
+
 FIXTURES = RAIZ / "tests" / "fixtures"
 SALIDA = RAIZ / "tests" / "salida"
-# En CI se apunta a la copia instalada en %LOCALAPPDATA%\DerechoAMarkdown\app
-APP_DIR = Path(os.environ.get("MARKITDOWN_APP_DIR", RAIZ / "app"))
-
-# .pyw no se importa directo: se carga con un loader explícito
-_loader = SourceFileLoader("convertir_markitdown", str(APP_DIR / "convertir_markitdown.pyw"))
-_spec = importlib.util.spec_from_loader(_loader.name, _loader)
-app = importlib.util.module_from_spec(_spec)
-_loader.exec_module(app)
+app = cargar()
 
 ESPERADO = {
     "muestra.docx": ["# Informe de prueba", "ñandú", "| Horas | 42 |"],

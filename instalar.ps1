@@ -16,7 +16,7 @@ param(
     [switch]$SinPreguntas
 )
 
-$Version    = '1.0.0'
+$Version    = '1.1.0'
 $InstallDir = Join-Path $env:LOCALAPPDATA 'DerechoAMarkdown'
 $VenvDir    = Join-Path $InstallDir 'venv'
 $AppDir     = Join-Path $InstallDir 'app'
@@ -188,6 +188,8 @@ try {
         New-Item -Path $k -Force -ErrorAction Stop | Out-Null
         New-ItemProperty -Path $k -Name 'MUIVerb' -Value $VerbText -PropertyType String -Force -ErrorAction Stop | Out-Null
         New-ItemProperty -Path $k -Name 'Icon'    -Value $icono    -PropertyType String -Force -ErrorAction Stop | Out-Null
+        # Mostrar la opción aunque se seleccionen más de 15 archivos (el conversor los agrupa)
+        New-ItemProperty -Path $k -Name 'MultiSelectModel' -Value 'Player' -PropertyType String -Force -ErrorAction Stop | Out-Null
         New-Item -Path "$k\command" -Value $cmd -Force -ErrorAction Stop | Out-Null
     }
     Ok ("Opción agregada para: " + ($lista -join ' '))
